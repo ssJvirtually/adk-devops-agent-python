@@ -58,12 +58,19 @@ def list_jobs() -> str:
 
 @mcp_app.tool()
 def build_job(job_name: str, params: dict | None = None) -> str:
-    """Trigger a Jenkins build for a specified job name with optional parameters (e.g. TAG, REPO)."""
+    """Trigger a Jenkins build for a specified job name with optional parameters (e.g. TAG, REPO_URL, REPO)."""
     try:
         session = get_session()
-        if params:
+        build_params = dict(params) if params else {}
+
+        # Transparently inject GITHUB_TOKEN for private repo cloning if available
+        token = os.getenv("GITHUB_PERSONAL_ACCESS_TOKEN") or os.getenv("GITHUB_TOKEN")
+        if token and "GITHUB_TOKEN" not in build_params:
+            build_params["GITHUB_TOKEN"] = token
+
+        if build_params:
             url = f"{JENKINS_URL}/job/{job_name}/buildWithParameters"
-            resp = session.post(url, params=params, timeout=10)
+            resp = session.post(url, params=build_params, timeout=10)
         else:
             url = f"{JENKINS_URL}/job/{job_name}/build"
             resp = session.post(url, timeout=10)

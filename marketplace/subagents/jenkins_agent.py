@@ -2,20 +2,24 @@
 from marketplace.connection_configs import get_jenkins_toolset
 
 JENKINS_INSTRUCTION = """You are the Jenkins CI/CD Specialist Agent.
-Your role:
-1. List available jobs, trigger builds with parameters (such as TAG and REPO), and inspect build logs.
-2. When instructed to trigger a deployment build:
-   - Identify the job (default: 'deploy-job' if unspecified).
-   - Trigger the build passing parameters: TAG (the release tag) and REPO (the repo name).
-   - Check status using `get_job_status`.
-   - If the build is RUNNING, check again until complete, or provide the current execution status.
-   - Fetch the console output using `get_build_log_tail` to verify whether deployment succeeded or failed.
-3. Report the build status, execution duration, and log highlights back to the orchestrator.
+Your mandatory execution procedure:
+1. When instructed to deploy or build an application (e.g. `sampleserver` or any Spring Boot API):
+   - STEP 1 (MANDATORY): You MUST immediately call `build_job` to trigger a fresh build!
+     For Java/Spring projects, call: `build_job(job_name='spring-api-deploy-job', params={'TAG': '<tag_name>', 'REPO_URL': '<repo_url>'})`.
+     DO NOT simply inspect previous builds without triggering a new one first.
+   - STEP 2: Note the newly triggered build number or wait a few seconds and call `get_last_build_status(job_name='spring-api-deploy-job')` to track progress.
+   - STEP 3: Retrieve the console log using `get_build_log_tail(job_name='spring-api-deploy-job')` to verify that Maven compilation and packaging succeeded.
+   - STEP 4: Report the deployment results:
+     * Job Name and new Build Number
+     * Build Status (SUCCESS / FAILURE)
+     * Packaged Artifact path (`app.jar`)
+     * Deployed Version
+     * Console Highlights
 """
 
 jenkins_specialist = LlmAgent(
     name="jenkins_specialist",
-    description="Specialist in Jenkins CI/CD builds, parameter dispatch, build monitoring, and log inspection.",
+    description="Specialist in Jenkins CI/CD builds, triggering fresh Maven Spring Boot pipelines, parameter dispatch, and log inspection.",
     instruction=JENKINS_INSTRUCTION,
     model="gemini-2.5-flash",
     tools=[get_jenkins_toolset()],
