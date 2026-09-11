@@ -15,7 +15,7 @@ echo "================================================================="
 echo "STARTING REAL SPRING BOOT API CI/CD BUILD & DEPLOYMENT"
 echo "Repository: $REPO_URL"
 echo "Release Tag: $TAG"
-echo "Deploy Target: $DEPLOY_DIR"
+echo "Host Deploy Target: $DEPLOY_DIR"
 echo "Timestamp: $(date)"
 echo "================================================================="
 
@@ -52,26 +52,34 @@ if [ -z "$JAR_FILE" ]; then
 fi
 echo "--> Successfully generated artifact: $JAR_FILE"
 
-echo "--> Step 3: Deploying artifact to local machine target directory: $DEPLOY_DIR"
+echo "--> Step 3: Deploying artifact directly to host machine directory: $DEPLOY_DIR"
 mkdir -p "${DEPLOY_DIR}"
 cp "$JAR_FILE" "${DEPLOY_DIR}/app.jar"
 echo "${TAG}" > "${DEPLOY_DIR}/current_version.txt"
 date > "${DEPLOY_DIR}/deployed_at.txt"
 
+# Create Linux/Bash launcher
 cat << 'EOF' > "${DEPLOY_DIR}/start.sh"
 #!/bin/bash
-export JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64
-export PATH=$JAVA_HOME/bin:$PATH
 exec java -jar app.jar
 EOF
 chmod +x "${DEPLOY_DIR}/start.sh"
 
+# Create Windows Batch launcher
+cat << 'EOF' > "${DEPLOY_DIR}/start.bat"
+@echo off
+echo Starting Spring Boot API on Windows Host...
+java -jar app.jar
+pause
+EOF
+
 echo "================================================================="
-echo "SUCCESS: SPRING BOOT API DEPLOYED TO LOCAL MACHINE!"
-echo "Deployed Artifact: ${DEPLOY_DIR}/app.jar"
+echo "SUCCESS: SPRING BOOT API DEPLOYED DIRECTLY TO HOST MACHINE!"
+echo "Host Artifact: ${DEPLOY_DIR}/app.jar"
 echo "Deployed Version: $(cat "${DEPLOY_DIR}/current_version.txt")"
 echo "Deployment Timestamp: $(cat "${DEPLOY_DIR}/deployed_at.txt")"
-echo "Launcher Script: ${DEPLOY_DIR}/start.sh"
+echo "Windows Launcher: ${DEPLOY_DIR}/start.bat"
+echo "Linux/WSL Launcher: ${DEPLOY_DIR}/start.sh"
 echo "================================================================="
 """
 
@@ -79,7 +87,7 @@ def create_job():
     escaped_script = saxutils.escape(SHELL_SCRIPT)
     xml_config = f"""<?xml version='1.1' encoding='UTF-8'?>
 <project>
-  <description>Spring Boot Java API Build &amp; Deploy Pipeline</description>
+  <description>Spring Boot Java API Build &amp; Deploy Pipeline (Host Machine Mounted)</description>
   <keepDependencies>false</keepDependencies>
   <properties>
     <hudson.model.ParametersDefinitionProperty>
@@ -98,8 +106,8 @@ def create_job():
         </hudson.model.StringParameterDefinition>
         <hudson.model.StringParameterDefinition>
           <name>DEPLOY_DIR</name>
-          <description>Target Deployment Directory</description>
-          <defaultValue>/var/jenkins_home/deployments/sampleserver</defaultValue>
+          <description>Target Deployment Directory (Host Mounted)</description>
+          <defaultValue>/host_deployments/sampleserver</defaultValue>
           <trim>true</trim>
         </hudson.model.StringParameterDefinition>
         <hudson.model.PasswordParameterDefinition>
@@ -139,9 +147,8 @@ def create_job():
     session.headers["Content-Type"] = "application/xml"
     res = session.post(f"{JENKINS_URL}/job/spring-api-deploy-job/config.xml", data=xml_config)
     if res.status_code == 200:
-        print("Updated 'spring-api-deploy-job' config successfully!")
+        print("Updated 'spring-api-deploy-job' config for host mounting successfully!")
     else:
-        # Try creating if not exists
         res2 = session.post(f"{JENKINS_URL}/createItem?name=spring-api-deploy-job", data=xml_config)
         print("Create response:", res2.status_code)
 

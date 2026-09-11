@@ -20,7 +20,8 @@ __pycache__/
 .adk/
 *.log
 
-# Docker volume data
+# Docker volume & host deployment artifacts
+deployments/
 docker_jenkins_data/
 
 # OS and IDE files

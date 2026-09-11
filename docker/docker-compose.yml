@@ -1,6 +1,9 @@
 ﻿services:
   jenkins:
-    image: jenkins/jenkins:lts-jdk17
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: custom-jenkins-devops:latest
     container_name: jenkins-devops
     ports:
       - "8088:8080"
@@ -10,6 +13,7 @@
     volumes:
       - jenkins_data:/var/jenkins_home
       - ./init-scripts:/usr/share/jenkins/ref/init.groovy.d
+      - ../deployments:/host_deployments
     restart: unless-stopped
 
 volumes:
