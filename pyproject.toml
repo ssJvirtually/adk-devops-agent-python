@@ -1,0 +1,12 @@
+﻿[project]
+name = "adk-devops-agent-python"
+version = "0.1.0"
+description = "Multi-agent DevOps Marketplace using Google ADK and MCP"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "google-adk>=2.9.0",
+    "mcp>=2.2.0",
+    "requests>=2.32.0",
+    "python-dotenv>=1.0.1",
+]
