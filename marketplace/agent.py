@@ -1,4 +1,17 @@
 ﻿import os
+import sys
+
+# Set stdout/stderr to utf-8 on Windows
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
+# Ensure project root is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from google.adk.agents import LlmAgent
 from marketplace.subagents.git_agent import git_specialist
 from marketplace.subagents.jenkins_agent import jenkins_specialist
@@ -52,3 +65,45 @@ root_agent = LlmAgent(
     model="gemini-2.5-flash",
     sub_agents=[git_specialist, jenkins_specialist, sonar_specialist],
 )
+
+
+if __name__ == "__main__":
+    import asyncio
+    from google.adk.runners import Runner
+    from google.adk.sessions import InMemorySessionService
+    from google.genai.types import Content, Part
+
+    async def cli_chat():
+        session_service = InMemorySessionService()
+        session = await session_service.create_session(app_name="marketplace", user_id="user_cli")
+        runner = Runner(agent=root_agent, app_name="marketplace", session_service=session_service)
+
+        print("\n" + "=" * 65)
+        print("DevOps Orchestrator Interactive Shell")
+        print("Type your message and press Enter. (Type 'exit' or 'quit' to stop)")
+        print("=" * 65 + "\n")
+
+        while True:
+            try:
+                user_input = input("User > ").strip()
+                if not user_input:
+                    continue
+                if user_input.lower() in ("exit", "quit"):
+                    print("Goodbye!")
+                    break
+
+                msg = Content(role="user", parts=[Part.from_text(text=user_input)])
+                print("\nAgent > ", end="", flush=True)
+                async for event in runner.run_async(session_id=session.id, user_id="user_cli", new_message=msg):
+                    if hasattr(event, "content") and event.content:
+                        for p in event.content.parts:
+                            if getattr(p, "text", None):
+                                print(p.text, end="", flush=True)
+                    if hasattr(event, "actions") and event.actions and event.actions.transfer_to_agent:
+                        print(f"\n[-> Delegating to {event.actions.transfer_to_agent}...]\n", flush=True)
+                print("\n")
+            except (KeyboardInterrupt, EOFError):
+                print("\nExiting...")
+                break
+
+    asyncio.run(cli_chat())
